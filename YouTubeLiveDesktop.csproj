@@ -15,7 +15,7 @@
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <Product>YouTube Live Desktop</Product>
     <AssemblyTitle>YouTube Live Desktop</AssemblyTitle>
-    <Version>1.0.0</Version>
+    <Version>1.1.0</Version>
     <!-- exe 파일 자체의 아이콘(탐색기/작업 표시줄/바로가기에 표시됨).
          이 파일을 교체하면 exe 아이콘이 바뀝니다. -->
     <ApplicationIcon>Resources\app.ico</ApplicationIcon>
