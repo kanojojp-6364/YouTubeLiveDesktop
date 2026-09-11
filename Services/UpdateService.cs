@@ -47,34 +47,55 @@ namespace YouTubeLiveDesktop.Services
             return client;
         }
 
+        /// <summary>
+        /// 마지막 CheckForUpdateAsync() 호출에서 실패(또는 건너뜀)한 이유. 정상적으로 "새 버전 없음"으로
+        /// 판정된 경우(이미 최신 버전)에는 null입니다 — 그건 실패가 아니라 정상 결과이기 때문입니다.
+        /// 진단용으로만 쓰고, UI에 그대로 노출해도 괜찮은 수준의 메시지만 담습니다.
+        /// </summary>
+        public string? LastCheckError { get; private set; }
+
         /// <summary>현재 실행 중인 버전보다 새로운 릴리즈가 있으면 정보를 반환하고, 없거나 확인에 실패하면 null을 반환합니다.</summary>
         public async Task<UpdateInfo?> CheckForUpdateAsync()
         {
-            if (GitHubOwner == "YOUR_GITHUB_USERNAME") return null; // 아직 저장소 정보가 설정되지 않음
+            LastCheckError = null;
 
             try
             {
                 var url = $"https://api.github.com/repos/{GitHubOwner}/{GitHubRepo}/releases/latest";
                 var json = await Http.GetStringAsync(url);
                 var release = JsonSerializer.Deserialize<GitHubRelease>(json);
-                if (release == null || string.IsNullOrWhiteSpace(release.TagName)) return null;
+                if (release == null || string.IsNullOrWhiteSpace(release.TagName))
+                {
+                    LastCheckError = "GitHub 릴리즈 응답을 해석하지 못했습니다.";
+                    return null;
+                }
 
                 var tag = release.TagName.TrimStart('v', 'V');
-                if (!Version.TryParse(tag, out var latestVersion)) return null;
+                if (!Version.TryParse(tag, out var latestVersion))
+                {
+                    LastCheckError = $"릴리즈 태그 '{release.TagName}'을(를) 버전 형식으로 해석하지 못했습니다.";
+                    return null;
+                }
 
                 var current = GetCurrentVersion();
-                if (latestVersion <= current) return null;
+                if (latestVersion <= current) return null; // 정상: 이미 최신 버전
 
                 var asset = release.Assets.FirstOrDefault(a =>
                     a.Name.EndsWith(".exe", StringComparison.OrdinalIgnoreCase));
-                if (asset == null) return null;
+                if (asset == null)
+                {
+                    LastCheckError = $"릴리즈 '{tag}'에 .exe 첨부 파일이 없습니다.";
+                    return null;
+                }
 
                 return new UpdateInfo(tag, asset.BrowserDownloadUrl, release.HtmlUrl);
             }
-            catch
+            catch (Exception ex)
             {
                 // 저장소가 없거나(404), 인터넷 연결이 없거나, GitHub 응답 오류 등 어떤 이유로든
-                // 확인에 실패하면 조용히 넘어갑니다.
+                // 확인에 실패해도 앱은 계속 정상 동작해야 하므로 예외를 밖으로 던지지는 않되,
+                // 원인은 LastCheckError에 남겨서 UI(트레이 풍선)에서 확인할 수 있게 합니다.
+                LastCheckError = $"{ex.GetType().Name}: {ex.Message}";
                 return null;
             }
         }

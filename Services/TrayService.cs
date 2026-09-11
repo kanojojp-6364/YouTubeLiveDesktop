@@ -103,6 +103,10 @@ namespace YouTubeLiveDesktop.Services
             devToolsItem.Click += (_, _) => OpenDevToolsRequested?.Invoke();
             menu.Items.Add(devToolsItem);
 
+            var aboutItem = new ToolStripMenuItem("버전 정보");
+            aboutItem.Click += (_, _) => ShowAbout();
+            menu.Items.Add(aboutItem);
+
             menu.Items.Add(new ToolStripSeparator());
 
             var exit = new ToolStripMenuItem("종료");
@@ -156,6 +160,24 @@ namespace YouTubeLiveDesktop.Services
 
         public void ShowBalloon(string title, string text) =>
             _notifyIcon.ShowBalloonTip(3000, title, text, ToolTipIcon.Info);
+
+        /// <summary>트레이 메뉴의 "버전 정보"를 눌렀을 때 앱 이름/간단한 설명/현재 버전을 보여줍니다.
+        /// 버전은 YouTubeLiveDesktop.csproj의 &lt;Version&gt;에서 자동으로 읽어오므로
+        /// (빌드 시 어셈블리에 새겨짐) 이 코드는 따로 손댈 필요가 없습니다.</summary>
+        private static void ShowAbout()
+        {
+            var version = System.Reflection.Assembly.GetExecutingAssembly().GetName().Version;
+            var versionText = version != null ? $"{version.Major}.{version.Minor}.{version.Build}" : "알 수 없음";
+
+            MessageBox.Show(
+                "YouTube Live Desktop\n" +
+                $"버전: v{versionText}\n\n" +
+                "YouTube Live 방송을 Windows 바탕화면 배경으로 재생하는 프로그램입니다.\n\n" +
+                $"제작자: {DeveloperInfo.Nickname} ({DeveloperInfo.Email})",
+                "버전 정보",
+                MessageBoxButtons.OK,
+                MessageBoxIcon.Information);
+        }
 
         public void Dispose()
         {

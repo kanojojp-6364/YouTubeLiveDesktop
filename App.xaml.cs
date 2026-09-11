@@ -90,7 +90,17 @@ namespace YouTubeLiveDesktop
         private async Task CheckForUpdatesAsync()
         {
             var info = await _updateService.CheckForUpdateAsync();
-            if (info == null) return;
+            if (info == null)
+            {
+                // LastCheckError가 있으면 "새 버전 없음"이 아니라 실제 확인 실패라는 뜻이므로
+                // 진단할 수 있도록 풍선 알림으로 원인을 보여줍니다(정상적으로 최신 버전인 경우엔 null).
+                if (_updateService.LastCheckError is { } error)
+                {
+                    Dispatcher.Invoke(() =>
+                        _trayService.ShowBalloon("YouTube Live Desktop", $"업데이트 확인 실패: {error}"));
+                }
+                return;
+            }
 
             _pendingUpdate = info;
             Dispatcher.Invoke(() =>
