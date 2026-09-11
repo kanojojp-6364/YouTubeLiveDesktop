@@ -15,7 +15,7 @@
     <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
     <Product>YouTube Live Desktop</Product>
     <AssemblyTitle>YouTube Live Desktop</AssemblyTitle>
-    <Version>1.1.3</Version>
+    <Version>1.1.4</Version>
     <!-- exe 파일 자체의 아이콘(탐색기/작업 표시줄/바로가기에 표시됨).
          이 파일을 교체하면 exe 아이콘이 바뀝니다. -->
     <ApplicationIcon>Resources\app.ico</ApplicationIcon>
@@ -26,6 +26,16 @@
     <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2903.40" />
     <!-- 후원 창의 입금 주소 QR 코드를 앱 안에서 직접 생성하기 위한 라이브러리 (순수 관리 코드, 외부 통신 없음) -->
     <PackageReference Include="QRCoder" Version="1.4.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- WPF의 펜/터치(Windows Ink, WISP) 입력 지원을 끕니다.
+         이 앱은 터치/스타일러스 입력이 전혀 필요 없는데, WPF 내부의 백그라운드
+         "Pen Thread"(MS.Win32.Penimc)가 일부 시스템에서 창이 닫힐 때
+         System.InvalidOperationException을 던지며 프로세스 전체가 죽는 알려진 버그가
+         있습니다(UI 스레드가 아니라 앱의 try/catch로 잡히지 않고 그냥 종료됨).
+         이 스위치로 해당 입력 스택 자체를 비활성화해 문제를 원천 차단합니다. -->
+    <RuntimeHostConfigurationOption Include="Switch.System.Windows.Input.Stylus.DisableStylusAndTouchSupport" Value="true" />
   </ItemGroup>
 
   <ItemGroup>

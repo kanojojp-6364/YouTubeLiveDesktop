@@ -1,9 +1,11 @@
 using System;
 using System.Diagnostics;
+using System.IO;
 using System.Threading;
 using System.Threading.Tasks;
 using System.Timers;
 using System.Windows;
+using System.Windows.Threading;
 using YouTubeLiveDesktop.Models;
 using YouTubeLiveDesktop.Services;
 using YouTubeLiveDesktop.Views;
@@ -32,6 +34,15 @@ namespace YouTubeLiveDesktop
         protected override async void OnStartup(StartupEventArgs e)
         {
             base.OnStartup(e);
+
+            // 원인 불명으로 프로세스가 아무 안내 없이 그냥 종료되는 문제(예: UI 스레드가 아닌
+            // 백그라운드 스레드에서 발생한 미처리 예외)를 진단할 수 있도록, 어떤 스레드에서
+            // 터지든 %AppData%\YouTubeLiveDesktop\crash.log 에 예외 내용을 남깁니다.
+            // (UI 스레드 예외는 로그만 남기고 기본 동작대로 앱을 종료시킵니다 — 이미 오염된
+            // 상태로 계속 실행하는 것보다 안전합니다.)
+            AppDomain.CurrentDomain.UnhandledException += (_, args) => LogCrash(args.ExceptionObject as Exception);
+            DispatcherUnhandledException += (_, args) => LogCrash(args.Exception);
+            TaskScheduler.UnobservedTaskException += (_, args) => LogCrash(args.Exception);
 
             // 프로그램이 중복 실행되지 않도록 단일 인스턴스만 허용합니다.
             _singleInstanceMutex = new Mutex(true, "YouTubeLiveDesktop_SingleInstance", out bool isNew);
@@ -308,6 +319,21 @@ namespace YouTubeLiveDesktop
             else
             {
                 _mainWindow?.SetStatus("일시적 오류 - 재시도 중...");
+            }
+        }
+
+        private static void LogCrash(Exception? ex)
+        {
+            try
+            {
+                var dir = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "YouTubeLiveDesktop");
+                Directory.CreateDirectory(dir);
+                File.AppendAllText(Path.Combine(dir, "crash.log"), $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {ex}\n\n");
+            }
+            catch
+            {
+                // 로그 남기기 자체가 실패해도(디스크 오류 등) 앱 종료 흐름을 막지는 않습니다.
             }
         }
 
