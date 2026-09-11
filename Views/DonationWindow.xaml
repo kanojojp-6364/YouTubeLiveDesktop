@@ -1,0 +1,25 @@
+<Window x:Class="YouTubeLiveDesktop.Views.DonationWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="개발자 후원하기"
+        Width="380" Height="540"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize">
+    <Grid>
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Grid.Row="0" Margin="16,16,16,0">
+            <TextBlock x:Name="DeveloperInfoText" FontSize="12" Foreground="Gray"/>
+        </StackPanel>
+
+        <TextBlock Grid.Row="1" TextWrapping="Wrap" FontSize="13"
+                   Margin="16,4,16,8"
+                   Text="YouTube Live Desktop이 마음에 드셨다면 후원으로 응원해 주세요 🙏 아래 탭에서 코인을 선택하고, QR코드를 스캔하거나 주소를 복사해 입금하시면 됩니다."/>
+
+        <TabControl Grid.Row="2" x:Name="MainTabControl" Margin="8,0,8,12"/>
+    </Grid>
+</Window>

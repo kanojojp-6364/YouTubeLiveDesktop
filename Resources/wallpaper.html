@@ -1,0 +1,400 @@
+<!DOCTYPE html>
+<html>
+<head>
+<meta charset="utf-8" />
+<!-- YouTube 임베드 플레이어가 오리진을 식별하지 못하면 "오류 153"이 발생하므로
+     크로스 오리진 요청에도 오리진 정보가 전달되도록 명시합니다. -->
+<meta name="referrer" content="strict-origin-when-cross-origin" />
+<style>
+  html, body {
+    margin: 0;
+    padding: 0;
+    width: 100%;
+    height: 100%;
+    background: #000;
+    overflow: hidden;
+  }
+  #stage {
+    position: absolute;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: #000;
+  }
+  #player {
+    background: #000;
+    object-fit: contain; /* 로컬 video 재생 시 원본 비율을 유지한 채 박스에 맞춥니다 */
+  }
+  #errorOverlay {
+    display: none;
+    position: absolute;
+    inset: 0;
+    z-index: 10;
+    align-items: center;
+    justify-content: center;
+    text-align: center;
+    color: #fff;
+    font-family: "Malgun Gothic", sans-serif;
+    font-size: 16px;
+    line-height: 1.6;
+    background: rgba(0, 0, 0, 0.88);
+    padding: 24px;
+    box-sizing: border-box;
+  }
+  #overlay {
+    position: absolute;
+    top: 50%;
+    left: 50%;
+    transform: translate(-50%, -50%);
+    z-index: 5;
+    text-align: center;
+    color: #fff;
+    font-family: "Malgun Gothic", "Segoe UI", sans-serif;
+    text-shadow: 0 2px 12px rgba(0, 0, 0, 0.75), 0 0 3px rgba(0, 0, 0, 0.9);
+    pointer-events: none;
+    user-select: none;
+    white-space: nowrap;
+  }
+  #ovIcon { font-size: 64px; line-height: 1; }
+  #ovTemp { font-size: 56px; font-weight: 700; margin-top: 2px; }
+  #ovCond { font-size: 18px; opacity: 0.9; margin-top: 4px; }
+  #ovDate { font-size: 20px; margin-top: 22px; }
+  #ovTime { font-size: 46px; font-weight: 300; letter-spacing: 2px; margin-top: 4px; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<div id="stage">
+  <div id="player"></div>
+  <div id="overlay">
+    <div id="ovIcon">🌡️</div>
+    <div id="ovTemp"></div>
+    <div id="ovCond">날씨 불러오는 중...</div>
+    <div id="ovDate"></div>
+    <div id="ovTime"></div>
+  </div>
+  <div id="errorOverlay"></div>
+</div>
+<script>
+  // ---- 소스 정보 (C#에서 주입) ----
+  // sourceType: 'youtube' | 'vimeo' | 'local'
+  // sourceValue: youtube=videoId, vimeo=숫자 영상ID, local=재생 가능한 https 주소
+  var sourceType = "__SOURCE_TYPE__";
+  var sourceValue = "__SOURCE_VALUE__";
+  var pendingVolume = __VOLUME__;
+  var pendingMuted = __MUTED__;
+
+  var ytPlayer = null;
+  var vimeoPlayer = null;
+  var localVideoEl = null;
+
+  var reloadTimer = null;
+  var errorRetryCount = 0;
+  var MAX_ERROR_RETRIES = 3;
+
+  function notify(msg) {
+    try { window.chrome.webview.postMessage(msg); } catch (e) { /* 호스트 브리지 없음(테스트 환경 등) */ }
+  }
+
+  // ---- 공통 오류 처리 ----
+  // retryable=true인 오류만 제한된 횟수로 재시도합니다. 그 외(임베드 차단, 파일 없음,
+  // 지원하지 않는 형식 등 콘텐츠 자체의 영구적 제한)는 재시도해도 같은 오류가 즉시
+  // 반복되어 화면이 깜빡이므로 재시도하지 않고 바로 안내 문구를 표시합니다.
+  function reportError(message, retryable) {
+    notify('error:' + message);
+
+    if (retryable && errorRetryCount < MAX_ERROR_RETRIES) {
+      errorRetryCount++;
+      clearTimeout(reloadTimer);
+      reloadTimer = setTimeout(function () { playerReload(); }, 8000);
+    } else {
+      notify('fatal:' + message);
+      showErrorOverlay(message);
+    }
+  }
+
+  function onPlaySuccess() {
+    errorRetryCount = 0;
+    clearTimeout(reloadTimer);
+    hideErrorOverlay();
+  }
+
+  function showErrorOverlay(message) {
+    var el = document.getElementById('errorOverlay');
+    el.innerHTML = message + "<br/><br/>트레이 아이콘 메뉴 → 설정 열기에서 다른 URL/파일을 입력해 주세요.";
+    el.style.display = 'flex';
+  }
+
+  function hideErrorOverlay() {
+    document.getElementById('errorOverlay').style.display = 'none';
+  }
+
+  // ---- 공통 플레이어 제어 (재생 종류에 따라 실제 구현으로 위임) ----
+  function playerSetVolume(v) {
+    if (sourceType === 'youtube' && ytPlayer && ytPlayer.setVolume) ytPlayer.setVolume(v);
+    else if (sourceType === 'vimeo' && vimeoPlayer) vimeoPlayer.setVolume(v / 100).catch(function () {});
+    else if (sourceType === 'local' && localVideoEl) localVideoEl.volume = v / 100;
+  }
+  function playerSetMuted(m) {
+    if (sourceType === 'youtube' && ytPlayer && ytPlayer.mute) { if (m) ytPlayer.mute(); else ytPlayer.unMute(); }
+    else if (sourceType === 'vimeo' && vimeoPlayer) vimeoPlayer.setMuted(m).catch(function () {});
+    else if (sourceType === 'local' && localVideoEl) localVideoEl.muted = m;
+  }
+  function playerPlay() {
+    if (sourceType === 'youtube' && ytPlayer && ytPlayer.playVideo) ytPlayer.playVideo();
+    else if (sourceType === 'vimeo' && vimeoPlayer) vimeoPlayer.play().catch(function () {});
+    else if (sourceType === 'local' && localVideoEl) localVideoEl.play().catch(function () {});
+  }
+  function playerPause() {
+    if (sourceType === 'youtube' && ytPlayer && ytPlayer.pauseVideo) ytPlayer.pauseVideo();
+    else if (sourceType === 'vimeo' && vimeoPlayer) vimeoPlayer.pause().catch(function () {});
+    else if (sourceType === 'local' && localVideoEl) localVideoEl.pause();
+  }
+  function playerReload() {
+    if (sourceType === 'youtube' && ytPlayer && ytPlayer.loadVideoById) ytPlayer.loadVideoById(sourceValue);
+    else if (sourceType === 'vimeo' && vimeoPlayer) vimeoPlayer.loadVideo(Number(sourceValue)).catch(function () {});
+    else if (sourceType === 'local' && localVideoEl) { localVideoEl.load(); localVideoEl.play().catch(function () {}); }
+  }
+
+  // ---- 화면 크기에 맞춰 16:9 유지 (레터박스/필러박스) ----
+  function resize() {
+    var w = window.innerWidth, h = window.innerHeight;
+    var targetW, targetH;
+    if (w / h > 16 / 9) { targetH = h; targetW = Math.floor(h * 16 / 9); }
+    else { targetW = w; targetH = Math.floor(w * 9 / 16); }
+
+    var el = document.getElementById('player');
+    if (el) {
+      el.style.width = targetW + 'px';
+      el.style.height = targetH + 'px';
+    }
+    if (sourceType === 'youtube' && ytPlayer && ytPlayer.setSize) ytPlayer.setSize(targetW, targetH);
+  }
+  window.addEventListener('resize', resize);
+
+  // ==================== YouTube ====================
+  var YOUTUBE_ERROR_MESSAGES = {
+    2: "잘못된 영상 URL입니다.",
+    5: "일시적인 재생 오류입니다.",
+    100: "영상을 찾을 수 없습니다. 비공개로 전환되었거나 삭제된 영상일 수 있습니다.",
+    101: "채널 소유자가 이 영상의 외부(임베드) 재생을 허용하지 않았습니다.",
+    150: "채널 소유자가 이 영상의 외부(임베드) 재생을 허용하지 않았습니다.",
+    153: "플레이어 구성 오류(오리진/Referer 확인 실패)입니다. 잠시 후 자동 재시도합니다."
+  };
+
+  function initYouTube() {
+    var tag = document.createElement('script');
+    tag.src = "https://www.youtube.com/iframe_api";
+    document.body.appendChild(tag);
+  }
+
+  function onYouTubeIframeAPIReady() {
+    ytPlayer = new YT.Player('player', {
+      videoId: sourceValue,
+      playerVars: {
+        autoplay: 1, controls: 0, disablekb: 1, fs: 0,
+        modestbranding: 1, rel: 0, iv_load_policy: 3, playsinline: 1
+      },
+      events: {
+        'onReady': function () {
+          resize();
+          ytPlayer.setVolume(pendingVolume);
+          if (pendingMuted) { ytPlayer.mute(); } else { ytPlayer.unMute(); }
+          ytPlayer.playVideo();
+          notify('ready');
+        },
+        'onStateChange': function (e) {
+          notify('state:' + e.data);
+          if (e.data === YT.PlayerState.PLAYING) onPlaySuccess();
+        },
+        'onError': function (e) {
+          var code = e.data;
+          var isRetryable = (code === 5 || code === 153);
+          reportError(YOUTUBE_ERROR_MESSAGES[code] || ("알 수 없는 재생 오류가 발생했습니다. (코드 " + code + ")"), isRetryable);
+        }
+      }
+    });
+  }
+
+  // ==================== Vimeo ====================
+  function initVimeo() {
+    var tag = document.createElement('script');
+    tag.src = "https://player.vimeo.com/api/player.js";
+    tag.onload = function () {
+      vimeoPlayer = new Vimeo.Player('player', {
+        id: Number(sourceValue),
+        autoplay: true,
+        muted: pendingMuted,
+        loop: true,
+        controls: false,
+        background: false
+      });
+
+      vimeoPlayer.ready().then(function () {
+        resize();
+        vimeoPlayer.setVolume(pendingMuted ? 0 : pendingVolume / 100).catch(function () {});
+        notify('ready');
+      }).catch(function (err) {
+        reportError("Vimeo 플레이어를 초기화하지 못했습니다.", true);
+      });
+
+      vimeoPlayer.on('play', onPlaySuccess);
+      vimeoPlayer.on('error', function (err) {
+        var name = (err && err.name) || 'unknown';
+        var message = name === 'PrivacyError'
+          ? "이 Vimeo 영상은 외부 사이트 재생이 제한되어 있습니다."
+          : (name === 'NotFoundError'
+            ? "Vimeo 영상을 찾을 수 없습니다."
+            : ("Vimeo 재생 오류가 발생했습니다. (" + name + ")"));
+        reportError(message, false);
+      });
+    };
+    tag.onerror = function () {
+      reportError("Vimeo 플레이어 스크립트를 불러오지 못했습니다. 인터넷 연결을 확인해 주세요.", true);
+    };
+    document.body.appendChild(tag);
+  }
+
+  // ==================== 로컬 동영상 파일 ====================
+  function initLocal() {
+    var placeholder = document.getElementById('player');
+    var video = document.createElement('video');
+    video.id = 'player';
+    video.autoplay = true;
+    video.loop = true;
+    video.playsInline = true;
+    video.muted = pendingMuted;
+    video.src = sourceValue;
+    placeholder.replaceWith(video);
+    localVideoEl = video;
+
+    video.volume = pendingMuted ? 0 : Math.max(0, Math.min(1, pendingVolume / 100));
+
+    video.addEventListener('loadedmetadata', resize);
+    video.addEventListener('playing', function () {
+      resize();
+      notify('ready');
+      onPlaySuccess();
+    });
+    video.addEventListener('error', function () {
+      var err = video.error;
+      var code = err ? err.code : 0;
+      // MediaError.code: 1=중단, 2=네트워크, 3=디코딩, 4=지원하지 않는 형식/파일 없음
+      var messages = {
+        1: "재생이 중단되었습니다.",
+        2: "파일을 불러오는 중 오류가 발생했습니다.",
+        3: "동영상을 디코딩할 수 없습니다 (손상되었거나 지원하지 않는 코덱).",
+        4: "지원하지 않는 파일 형식이거나 파일을 찾을 수 없습니다."
+      };
+      var retryable = (code === 2); // 네트워크 오류만 재시도
+      reportError(messages[code] || "로컬 동영상 재생 오류가 발생했습니다.", retryable);
+    });
+
+    video.play().catch(function () { /* 자동재생 정책에 막히면 이후 setMuted(true) 등으로 재시도됨 */ });
+  }
+
+  // ==================== 화면 중앙 오버레이: 날짜 / 요일 / 시간 ====================
+  function updateClock() {
+    var now = new Date();
+    var dateStr = now.toLocaleDateString('ko-KR', { year: 'numeric', month: 'long', day: 'numeric', weekday: 'long' });
+    var timeStr = now.toLocaleTimeString('ko-KR', { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false });
+    document.getElementById('ovDate').textContent = dateStr;
+    document.getElementById('ovTime').textContent = timeStr;
+  }
+  updateClock();
+  setInterval(updateClock, 1000);
+
+  // ==================== 화면 중앙 오버레이: 날씨 (Open-Meteo, API 키 불필요) ====================
+  // 지역은 자유 입력이 아니라 C# 쪽에서 고정 좌표가 확정된 드롭다운 목록에서만 선택되므로
+  // 여기서는 지오코딩(지역명 → 좌표 변환) 없이 바로 좌표로 날씨를 조회합니다.
+  var weatherName = "__REGION_NAME__";
+  var weatherLat = __REGION_LAT__;
+  var weatherLon = __REGION_LON__;
+  var weatherTimer = null;
+
+  var WEATHER_ICONS = {
+    0: '☀️', 1: '🌤️', 2: '⛅', 3: '☁️',
+    45: '🌫️', 48: '🌫️',
+    51: '🌦️', 53: '🌦️', 55: '🌦️',
+    56: '🌧️', 57: '🌧️',
+    61: '🌧️', 63: '🌧️', 65: '🌧️',
+    66: '🌨️', 67: '🌨️',
+    71: '🌨️', 73: '🌨️', 75: '❄️', 77: '❄️',
+    80: '🌦️', 81: '🌧️', 82: '⛈️',
+    85: '🌨️', 86: '❄️',
+    95: '⛈️', 96: '⛈️', 99: '⛈️'
+  };
+  var WEATHER_LABELS = {
+    0: '맑음', 1: '대체로 맑음', 2: '구름 조금', 3: '흐림',
+    45: '안개', 48: '안개',
+    51: '이슬비', 53: '이슬비', 55: '이슬비',
+    56: '어는 이슬비', 57: '어는 이슬비',
+    61: '비', 63: '비', 65: '강한 비',
+    66: '어는 비', 67: '어는 비',
+    71: '눈', 73: '눈', 75: '강한 눈', 77: '싸락눈',
+    80: '소나기', 81: '소나기', 82: '강한 소나기',
+    85: '소낙눈', 86: '소낙눈',
+    95: '뇌우', 96: '뇌우(우박)', 99: '뇌우(우박)'
+  };
+
+  function setWeatherStatus(text) {
+    document.getElementById('ovCond').textContent = text;
+  }
+
+  async function refreshWeather(name, lat, lon) {
+    if (typeof lat === 'number') weatherLat = lat;
+    if (typeof lon === 'number') weatherLon = lon;
+    if (name) weatherName = name;
+
+    if (weatherLat == null || weatherLon == null) {
+      document.getElementById('ovIcon').textContent = '📍';
+      document.getElementById('ovTemp').textContent = '';
+      setWeatherStatus('설정에서 지역을 선택해 주세요');
+      return;
+    }
+
+    try {
+      setWeatherStatus('날씨 불러오는 중...');
+      var wRes = await fetch('https://api.open-meteo.com/v1/forecast?latitude=' + weatherLat +
+        '&longitude=' + weatherLon + '&current=temperature_2m,weather_code&timezone=auto');
+      var w = await wRes.json();
+      var code = w.current.weather_code;
+      var temp = Math.round(w.current.temperature_2m);
+
+      document.getElementById('ovIcon').textContent = WEATHER_ICONS[code] || '🌡️';
+      document.getElementById('ovTemp').textContent = temp + '°C';
+      setWeatherStatus(weatherName + ' · ' + (WEATHER_LABELS[code] || ''));
+    } catch (e) {
+      setWeatherStatus('날씨 정보를 불러오지 못했습니다');
+    }
+  }
+
+  refreshWeather();
+  clearInterval(weatherTimer);
+  weatherTimer = setInterval(function () { refreshWeather(); }, 15 * 60 * 1000); // 15분마다 갱신
+
+  // ==================== C# 호스트로부터 명령 수신 ====================
+  try {
+    window.chrome.webview.addEventListener('message', function (ev) {
+      var data = ev.data;
+      if (typeof data !== 'object') return;
+
+      switch (data.cmd) {
+        case 'setRegion': refreshWeather(data.name, data.lat, data.lon); break;
+        case 'setVolume': pendingVolume = data.value; playerSetVolume(data.value); break;
+        case 'mute': pendingMuted = true; playerSetMuted(true); break;
+        case 'unmute': pendingMuted = false; playerSetMuted(false); break;
+        case 'play': playerPlay(); break;
+        case 'pause': playerPause(); break;
+        case 'reload': playerReload(); break;
+      }
+    });
+  } catch (e) { /* 호스트 브리지 없음(테스트 환경 등) */ }
+
+  // ==================== 시작 ====================
+  if (sourceType === 'vimeo') initVimeo();
+  else if (sourceType === 'local') initLocal();
+  else initYouTube();
+</script>
+</body>
+</html>

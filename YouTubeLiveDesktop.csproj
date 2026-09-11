@@ -1,0 +1,39 @@
+<Project Sdk="Microsoft.NET.Sdk">
+
+  <PropertyGroup>
+    <OutputType>WinExe</OutputType>
+    <TargetFramework>net8.0-windows</TargetFramework>
+    <Nullable>enable</Nullable>
+    <ImplicitUsings>disable</ImplicitUsings>
+    <UseWPF>true</UseWPF>
+    <UseWindowsForms>true</UseWindowsForms>
+    <AssemblyName>YouTubeLiveDesktop</AssemblyName>
+    <RootNamespace>YouTubeLiveDesktop</RootNamespace>
+    <Platforms>x64</Platforms>
+    <RuntimeIdentifiers>win-x64</RuntimeIdentifiers>
+    <ApplicationHighDpiMode>PerMonitorV2</ApplicationHighDpiMode>
+    <GenerateAssemblyInfo>true</GenerateAssemblyInfo>
+    <Product>YouTube Live Desktop</Product>
+    <AssemblyTitle>YouTube Live Desktop</AssemblyTitle>
+    <Version>1.0.0</Version>
+    <!-- exe 파일 자체의 아이콘(탐색기/작업 표시줄/바로가기에 표시됨).
+         이 파일을 교체하면 exe 아이콘이 바뀝니다. -->
+    <ApplicationIcon>Resources\app.ico</ApplicationIcon>
+  </PropertyGroup>
+
+  <ItemGroup>
+    <!-- YouTube Live 페이지/임베드 렌더링을 위한 Microsoft Edge WebView2 -->
+    <PackageReference Include="Microsoft.Web.WebView2" Version="1.0.2903.40" />
+    <!-- 후원 창의 입금 주소 QR 코드를 앱 안에서 직접 생성하기 위한 라이브러리 (순수 관리 코드, 외부 통신 없음) -->
+    <PackageReference Include="QRCoder" Version="1.4.3" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <!-- 바탕화면에 표시할 16:9 유지 + YouTube IFrame Player API 래퍼 페이지 -->
+    <EmbeddedResource Include="Resources\wallpaper.html" />
+    <!-- 트레이 아이콘에서 코드로 다시 읽어들이기 위해 리소스로도 함께 포함합니다
+         (ApplicationIcon은 exe 파일 아이콘용이고, 이건 트레이 아이콘 코드가 읽는 용도). -->
+    <EmbeddedResource Include="Resources\app.ico" />
+  </ItemGroup>
+
+</Project>
