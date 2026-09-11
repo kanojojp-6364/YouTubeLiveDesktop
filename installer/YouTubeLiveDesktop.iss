@@ -26,7 +26,7 @@
 ;   GitHub 릴리즈 태그(v1.1.0 등)를 비교하므로, 이 값 자체는 "제어판 > 프로그램" 등에
 ;   표시되는 용도지만 헷갈리지 않도록 항상 같이 올려주는 것이 좋습니다.
 #define MyAppName "YouTube Live Desktop"
-#define MyAppVersion "1.1.0"
+#define MyAppVersion "1.1.1"
 #define MyAppPublisher "dukyangtgs.com"
 #define MyAppExeName "YouTubeLiveDesktop.exe"
 #define MyPublishDir "..\publish"
