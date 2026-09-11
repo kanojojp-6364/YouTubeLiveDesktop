@@ -97,9 +97,9 @@ dotnet build -c Release
    대상 PC에 별도로 .NET을 설치할 필요가 없습니다.
 2. PC에 **Inno Setup**(무료, <https://jrsoftware.org/isinfo.php>)이 설치되어 있으면,
    위 EXE를 감싸는 진짜 설치 프로그램을 자동으로 만듭니다:
-   `installer_output\YouTubeLiveDesktopSetup.exe`
+   `installer_output\YouTubeLiveDesktopSetup-<버전>.exe` (예: `YouTubeLiveDesktopSetup-1.1.2.exe`)
 
-`YouTubeLiveDesktopSetup.exe`를 배포하면 사용자는 이 파일 하나만 실행해 **Install**을
+이 파일을 배포하면 사용자는 이 파일 하나만 실행해 **Install**을
 누르는 것으로 설치가 끝나고, 추가로 다른 프로그램을 설치하라는 창은 뜨지 않습니다
 (관리자 권한도 필요 없도록 사용자 폴더(`%LocalAppData%\Programs`)에 설치합니다).
 설치 후에는 시작 메뉴/바탕화면 바로가기로 실행하며, Windows 자동 시작은 앱을 한 번
@@ -130,16 +130,16 @@ Releases를 사용합니다(무료). **처음 한 번만** 설정하면 됩니�
    private const string GitHubOwner = "YOUR_GITHUB_USERNAME"; // 예: "hoya"
    private const string GitHubRepo = "YouTubeLiveDesktop";     // 실제 저장소 이름
    ```
-4. `.\publish.ps1`로 `installer_output\YouTubeLiveDesktopSetup.exe`를 다시 만듭니다.
+4. `.\publish.ps1`로 `installer_output\YouTubeLiveDesktopSetup-<버전>.exe`를 다시 만듭니다.
 5. 이 Setup.exe 파일을 사용자들에게 배포합니다(다운로드 링크로 공유, 웹사이트 게시 등 자유).
 
 ### 이후 새 버전을 낼 때마다
 
 1. `YouTubeLiveDesktop.csproj`의 `<Version>`을 올립니다 (예: `1.0.0` → `1.1.0`).
-2. `.\publish.ps1`을 실행해 새 `YouTubeLiveDesktopSetup.exe`를 만듭니다.
+2. `.\publish.ps1`을 실행해 새 `YouTubeLiveDesktopSetup-<버전>.exe`를 만듭니다.
 3. GitHub 저장소 페이지 → **Releases** → **Draft a new release**를 클릭합니다.
 4. 태그(Tag)에 `v1.1.0`처럼 **버전 형식**으로 입력합니다(맨 앞 `v`는 있어도 없어도 됩니다).
-5. 방금 만든 `YouTubeLiveDesktopSetup.exe`를 화면에 끌어다 놓아 첨부(Assets)한 뒤
+5. 방금 만든 `YouTubeLiveDesktopSetup-<버전>.exe`를 화면에 끌어다 놓아 첨부(Assets)한 뒤
    **Publish release**를 누릅니다.
 
 이렇게 올려두면, 이미 설치되어 실행 중인 모든 사용자의 앱이 실행 후 15초 이내(및 이후
@@ -152,7 +152,7 @@ Setup.exe를 자동으로 내려받아 실행하고(설치 마법사에서 Insta
 
 ## 사용법
 
-1. 설치 프로그램(`YouTubeLiveDesktopSetup.exe`)을 실행해 **Install**을 누릅니다.
+1. 설치 프로그램(`YouTubeLiveDesktopSetup-<버전>.exe`)을 실행해 **Install**을 누릅니다.
    (설치 프로그램 없이 `publish\YouTubeLiveDesktop.exe`를 바로 실행해도 됩니다.)
 2. 처음 실행 시 뜨는 설정 창에 재생할 URL/파일을 입력합니다.
    - YouTube: `https://www.youtube.com/watch?v=XXXXXXXXXXX`, `https://www.youtube.com/@채널명/live`,
@@ -176,8 +176,9 @@ Setup.exe를 자동으로 내려받아 실행하고(설치 마법사에서 Insta
 - 다중 모니터별 개별 URL 재생, 여러 URL 순환 재생, 화면 분할 — 미구현 (구조상 확장 가능하도록 서비스 분리)
 - 전체화면 앱 실행 감지 시 자동 일시정지 — 미구현
 - 설치형 EXE 패키징 — `installer\YouTubeLiveDesktop.iss`(Inno Setup)로 구현했습니다
-  (`.\publish.ps1` 실행 시 Inno Setup이 설치되어 있으면 자동으로 `installer_output\YouTubeLiveDesktopSetup.exe`가
-  만들어집니다). MSI가 꼭 필요하면 WiX Toolset으로 별도 제작 가능합니다.
+  (`.\publish.ps1` 실행 시 Inno Setup이 설치되어 있으면 자동으로
+  `installer_output\YouTubeLiveDesktopSetup-<버전>.exe`가 만들어집니다). MSI가 꼭 필요하면
+  WiX Toolset으로 별도 제작 가능합니다.
 - YouTube는 페이지 구조/정책을 자주 바꾸므로, `/@채널/live` 같은 리다이렉트 기반 URL의
   videoId 해석 로직(`WebViewService.ResolveYouTubeVideoIdAsync`)은 실제 환경에서 검증이 필요합니다.
 - WorkerW 탐색 로직(`DesktopWallpaperService`)은 Windows 버전/Explorer 빌드에 따라

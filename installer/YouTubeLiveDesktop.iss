@@ -17,7 +17,7 @@
 ;   2) publish.ps1을 먼저 실행해 publish\YouTubeLiveDesktop.exe를 만듭니다.
 ;   3) 이 파일을 Inno Setup Compiler로 열고 Build > Compile을 누르거나,
 ;      명령줄에서 `iscc installer\YouTubeLiveDesktop.iss` 를 실행합니다.
-;   4) installer_output\YouTubeLiveDesktopSetup.exe 가 생성됩니다.
+;   4) installer_output\YouTubeLiveDesktopSetup-<버전>.exe (예: YouTubeLiveDesktopSetup-1.1.2.exe) 가 생성됩니다.
 ;      이 파일이 사용자에게 배포할 "설치 프로그램"입니다. 실행 후 Install만 누르면
 ;      추가 프로그램 설치 없이 바로 앱이 설치/실행됩니다.
 
@@ -26,7 +26,7 @@
 ;   GitHub 릴리즈 태그(v1.1.0 등)를 비교하므로, 이 값 자체는 "제어판 > 프로그램" 등에
 ;   표시되는 용도지만 헷갈리지 않도록 항상 같이 올려주는 것이 좋습니다.
 #define MyAppName "YouTube Live Desktop"
-#define MyAppVersion "1.1.2"
+#define MyAppVersion "1.1.3"
 #define MyAppPublisher "dukyangtgs.com"
 #define MyAppExeName "YouTubeLiveDesktop.exe"
 #define MyPublishDir "..\publish"
@@ -45,7 +45,7 @@ DefaultGroupName={#MyAppName}
 DisableProgramGroupPage=yes
 PrivilegesRequired=lowest
 OutputDir=..\installer_output
-OutputBaseFilename=YouTubeLiveDesktopSetup
+OutputBaseFilename=YouTubeLiveDesktopSetup-{#MyAppVersion}
 Compression=lzma2
 SolidCompression=yes
 WizardStyle=modern

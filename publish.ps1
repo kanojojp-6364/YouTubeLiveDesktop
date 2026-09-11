@@ -6,8 +6,8 @@
 #   1) dotnet publish로 자기 완결형(self-contained) 단일 실행파일을 만듭니다.
 #      -> publish\YouTubeLiveDesktop.exe (별도 .NET 설치 불필요)
 #   2) 컴퓨터에 Inno Setup이 설치되어 있으면, 그 exe를 감싸는 진짜 설치 프로그램
-#      (installer_output\YouTubeLiveDesktopSetup.exe)을 자동으로 만듭니다.
-#      이 Setup.exe를 실행해 "Install"을 누르면 추가 프로그램 설치 없이
+#      (installer_output\YouTubeLiveDesktopSetup-<버전>.exe, 예: YouTubeLiveDesktopSetup-1.1.2.exe)을
+#      자동으로 만듭니다. 이 Setup.exe를 실행해 "Install"을 누르면 추가 프로그램 설치 없이
 #      바로 YouTube Live Desktop이 설치/실행됩니다.
 #
 # 참고: "YouTubeLiveDesktop.exe를 실행했더니 다른 프로그램을 설치하라고 나온다"는
@@ -35,9 +35,12 @@ Write-Host "      https://developer.microsoft.com/microsoft-edge/webview2/" -For
 Write-Host ""
 
 # Inno Setup Compiler(ISCC.exe)를 몇 가지 일반적인 설치 경로/환경변수 PATH에서 찾아봅니다.
+# (winget install JRSoftware.InnoSetup 로 설치하면 시스템 전체가 아니라 사용자 폴더인
+#  %LOCALAPPDATA%\Programs\Inno Setup 6 밑에 설치되는 경우가 많아 그 경로도 함께 찾아봅니다.)
 $isccCandidates = @(
     "$env:ProgramFiles(x86)\Inno Setup 6\ISCC.exe",
-    "$env:ProgramFiles\Inno Setup 6\ISCC.exe"
+    "$env:ProgramFiles\Inno Setup 6\ISCC.exe",
+    "$env:LOCALAPPDATA\Programs\Inno Setup 6\ISCC.exe"
 )
 $iscc = $isccCandidates | Where-Object { Test-Path $_ } | Select-Object -First 1
 if (-not $iscc) {
@@ -48,8 +51,10 @@ if (-not $iscc) {
 Write-Host "[2/2] 설치 프로그램(Setup.exe) 빌드..." -ForegroundColor Cyan
 if ($iscc) {
     & $iscc "installer\YouTubeLiveDesktop.iss"
+    $setupExe = Get-ChildItem "installer_output\YouTubeLiveDesktopSetup-*.exe" |
+        Sort-Object LastWriteTime -Descending | Select-Object -First 1
     Write-Host ""
-    Write-Host "설치 프로그램 생성 완료: installer_output\YouTubeLiveDesktopSetup.exe" -ForegroundColor Green
+    Write-Host "설치 프로그램 생성 완료: installer_output\$($setupExe.Name)" -ForegroundColor Green
     Write-Host "이 파일을 배포하세요. 실행 후 Install만 누르면 추가 설치 없이 바로 앱이 설치/실행됩니다." -ForegroundColor Green
 }
 else {

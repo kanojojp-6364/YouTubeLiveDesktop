@@ -22,7 +22,7 @@ namespace YouTubeLiveDesktop.Services
     ///
     /// 새 버전을 배포하는 절차:
     ///   1) YouTubeLiveDesktop.csproj의 &lt;Version&gt;을 올립니다 (예: 1.0.0 -> 1.1.0).
-    ///   2) .\publish.ps1 로 installer_output\YouTubeLiveDesktopSetup.exe를 새로 만듭니다.
+    ///   2) .\publish.ps1 로 installer_output\YouTubeLiveDesktopSetup-&lt;버전&gt;.exe를 새로 만듭니다.
     ///   3) GitHub 저장소의 "Releases" 탭에서 "Draft a new release"로 새 릴리즈를 만들고,
     ///      태그 이름을 "v1.1.0" 처럼 버전 형식으로 입력한 뒤, 위 Setup.exe 파일을
     ///      Assets로 첨부해서 게시(Publish)합니다.
