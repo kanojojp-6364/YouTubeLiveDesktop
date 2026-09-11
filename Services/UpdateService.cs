@@ -33,8 +33,8 @@ namespace YouTubeLiveDesktop.Services
     /// </summary>
     public class UpdateService
     {
-        private const string GitHubOwner = "YOUR_GITHUB_USERNAME"; // TODO: 실제 GitHub 계정명으로 변경
-        private const string GitHubRepo = "YouTubeLiveDesktop";     // TODO: 실제 저장소 이름으로 변경
+        private const string GitHubOwner = "kanojojp-6364";
+        private const string GitHubRepo = "YouTubeLiveDesktop";
 
         private static readonly HttpClient Http = CreateHttpClient();
 
