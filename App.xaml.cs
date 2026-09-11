@@ -107,12 +107,18 @@ namespace YouTubeLiveDesktop
                 // 진단할 수 있도록 풍선 알림으로 원인을 보여줍니다(정상적으로 최신 버전인 경우엔 null).
                 if (_updateService.LastCheckError is { } error)
                 {
+                    LogUpdateCheck($"실패: {error}");
                     Dispatcher.Invoke(() =>
                         _trayService.ShowBalloon("YouTube Live Desktop", $"업데이트 확인 실패: {error}"));
+                }
+                else
+                {
+                    LogUpdateCheck("새 버전 없음 (이미 최신 버전)");
                 }
                 return;
             }
 
+            LogUpdateCheck($"새 버전 감지됨: v{info.Version}");
             _pendingUpdate = info;
             Dispatcher.Invoke(() =>
             {
@@ -319,6 +325,27 @@ namespace YouTubeLiveDesktop
             else
             {
                 _mainWindow?.SetStatus("일시적 오류 - 재시도 중...");
+            }
+        }
+
+        /// <summary>
+        /// 업데이트 확인 결과(성공/실패/새 버전 없음)를 항상 남깁니다. 풍선 알림은 방해 금지 모드
+        /// 등으로 화면에 안 뜰 수 있어("업데이트가 안 뜬다"는 문의의 흔한 원인), 실제로 확인이
+        /// 이뤄졌는지/결과가 뭔지 이 로그 파일로 확실하게 알 수 있게 합니다.
+        /// </summary>
+        private static void LogUpdateCheck(string result)
+        {
+            try
+            {
+                var dir = Path.Combine(
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), "YouTubeLiveDesktop");
+                Directory.CreateDirectory(dir);
+                File.AppendAllText(Path.Combine(dir, "update-check.log"),
+                    $"[{DateTime.Now:yyyy-MM-dd HH:mm:ss}] {result}\n");
+            }
+            catch
+            {
+                // 로그 기록 실패가 업데이트 확인 자체를 막지는 않습니다.
             }
         }
 
